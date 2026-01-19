@@ -1,14 +1,25 @@
 "use client";
 
-import { LayoutGrid, Keyboard } from "lucide-react";
+import { LayoutGrid, Keyboard, Zap } from "lucide-react";
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 
 export function Header() {
+    const [isOnVercel, setIsOnVercel] = useState(false);
+
+    useEffect(() => {
+        setIsOnVercel(window.location.hostname.includes("vercel.app"));
+    }, []);
+
+    const handleSwitchToLocal = () => {
+        window.location.href = "http://localhost:3001";
+    };
+
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-16 items-center justify-between">
@@ -25,6 +36,18 @@ export function Header() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {isOnVercel && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-amber-500 border-amber-500/50 hover:bg-amber-500/10 hidden sm:flex"
+                            onClick={handleSwitchToLocal}
+                        >
+                            <Zap className="h-4 w-4 mr-2" />
+                            Use Localhost
+                        </Button>
+                    )}
+
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="ghost" size="icon" title="Keyboard shortcuts">
