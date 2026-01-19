@@ -61,22 +61,47 @@ export function AppCard({ app, onEdit, onDelete, onDuplicate, onTogglePin }: App
         e.stopPropagation(); // Prevent card click
         setIsStarting(true);
 
-        try {
-            const res = await fetch(`/api/apps/${app.id}/start`, {
+        const tryStart = async (baseUrl: string = "") => {
+            const res = await fetch(`${baseUrl}/api/apps/${app.id}/start`, {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                }
             });
+            if (!res.ok) throw new Error(res.statusText);
+            return await res.json();
+        };
 
-            const data = await res.json();
-
-            if (res.ok) {
+        try {
+            // First attempt: try the current origin (relative path)
+            try {
+                // If we are on Vercel, skip straight to localhost for local apps
+                if (window.location.hostname.includes("vercel.app") && app.type === "local") {
+                    throw new Error("Vercel detected, skipping relative path");
+                }
+                await tryStart();
                 toast.success(`🚀 Started server for "${app.name}"`);
-                // Wait a bit for server to start, then open the URL
-                setTimeout(() => {
-                    window.open(app.url, "_blank", "noopener,noreferrer");
-                }, 2000);
-            } else {
-                toast.error(data.error || "Failed to start server");
+            } catch (error) {
+                console.log("Failed to start on current origin, trying localhost...", error);
+
+                // Second attempt: try localhost:3001
+                // This works if the user has the app running locally on port 3001
+                try {
+                    await tryStart("http://localhost:3001");
+                    toast.success(`🚀 Started server via Localhost Agent for "${app.name}"`);
+                } catch (secondError) {
+                    console.error("Local agent also failed", secondError);
+                    toast.error("Could not connect to Local Server. Ensure 'npm run dev' is running on port 3001.");
+                    setIsStarting(false);
+                    return;
+                }
             }
+
+            // Success handling (open URL)
+            setTimeout(() => {
+                window.open(app.url, "_blank", "noopener,noreferrer");
+            }, 2000);
+
         } catch (error) {
             console.error("Error starting server:", error);
             toast.error("Failed to start server");
