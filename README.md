@@ -1,36 +1,200 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Krisandi Dashboard Apps
 
-## Getting Started
+A production-ready app launcher portal that unifies web apps and localhost tools into one beautiful dashboard.
 
-First, run the development server:
+![Dashboard Preview](https://via.placeholder.com/800x400?text=Krisandi+Dashboard+Apps)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## ✨ Features
+
+- **Card-based Dashboard**: Clean, responsive grid layout for all your apps
+- **Support for Web & Local Apps**: Works with hosted URLs and localhost development servers
+- **Smart Type Detection**: Automatically detects if URL is local or web-based
+- **Search & Filter**: Find apps quickly with search, type filters, and tag filters
+- **Keyboard Shortcuts**: Press `/` to search, `n` to add new app
+- **CRUD Operations**: Add, edit, delete, and duplicate apps
+- **Pin Favorites**: Pin important apps to the top
+- **Import/Export**: Backup and restore your app list as JSON
+- **Dark Theme**: Beautiful dark mode UI
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+ installed
+- npm or yarn
+
+### Installation
+
+1. Clone or navigate to the project directory:
+   ```bash
+   cd Krisandi-dashboard-apps
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## 📱 Usage
+
+### Adding Apps
+
+1. Press `n` or click the "Add App" button
+2. Fill in the app details:
+   - **Name**: The display name for your app
+   - **URL**: The full URL (e.g., `https://example.com` or `http://localhost:3001`)
+   - **Description**: Optional brief description
+   - **Icon**: Emoji (🚀) or Lucide icon name (e.g., `rocket`, `database`)
+   - **Tags**: Comma-separated tags for filtering
+3. Click "Add App"
+
+### App Type Detection
+
+The type is automatically detected from the URL:
+- URLs containing `localhost` or `127.0.0.1` → **Local** (amber badge)
+- All other URLs → **Web** (blue badge)
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `/` | Focus search box |
+| `n` | Open "Add App" modal |
+
+### Filtering & Sorting
+
+- **Search**: Filter by name, URL, description, or tags
+- **Type Filter**: Show All, Web only, or Local only
+- **Tags Filter**: Click on tags to filter
+- **Pinned Only**: Show only pinned apps
+- **Sort**: Pinned First, Name A-Z, or Recently Updated
+
+### Export / Import
+
+- **Export**: Click the download button to save all apps as JSON
+- **Import**: Click the upload button to load apps from a JSON file
+  - Duplicate URLs (by URL) will be skipped
+
+## 🗂️ Project Structure
+
+```
+Krisandi-dashboard-apps/
+├── app/
+│   ├── api/
+│   │   ├── apps/
+│   │   │   ├── route.ts        # GET all, POST new
+│   │   │   ├── [id]/route.ts   # PATCH, DELETE
+│   │   │   ├── export/route.ts # Export JSON
+│   │   │   └── import/route.ts # Import JSON
+│   │   └── tags/route.ts       # GET all tags
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── globals.css
+├── components/
+│   ├── ui/                     # shadcn/ui components
+│   ├── AppCard.tsx
+│   ├── AppGrid.tsx
+│   ├── AppFormModal.tsx
+│   ├── DeleteConfirmDialog.tsx
+│   └── Header.tsx
+├── lib/
+│   ├── db.ts                   # JSON storage layer
+│   ├── types.ts                # TypeScript types
+│   ├── validators.ts           # Zod schemas
+│   └── utils.ts                # Utilities
+├── data/
+│   └── apps.json               # App data storage
+└── README.md
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🌐 Deployment Notes
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Local Development
+The app runs on `localhost:3000` by default. All app data is stored in `data/apps.json`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Production Deployment
+When deployed to the web:
+- All features work normally
+- **Local app links** (localhost URLs) will only work when users are browsing from their own machine
+- This is expected behavior — you don't need to expose local ports publicly
 
-## Learn More
+### Recommended Platforms
+- Vercel (recommended for Next.js)
+- Netlify
+- Docker container
 
-To learn more about Next.js, take a look at the following resources:
+## 🔧 Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: TailwindCSS
+- **UI Components**: shadcn/ui
+- **Icons**: Lucide React
+- **Validation**: Zod
+- **Notifications**: Sonner
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📝 API Reference
 
-## Deploy on Vercel
+### GET /api/apps
+Returns all apps.
+```json
+{ "apps": [...] }
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### POST /api/apps
+Create a new app.
+```json
+// Request
+{ "name": "My App", "url": "https://example.com", "tags": ["dev"], "description": "...", "icon": "🚀", "isPinned": false }
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+// Response
+{ "app": {...} }
+```
+
+### PATCH /api/apps/:id
+Update an app.
+
+### DELETE /api/apps/:id
+Delete an app.
+
+### GET /api/tags
+Get all unique tags.
+
+### GET /api/apps/export
+Download apps as JSON file.
+
+### POST /api/apps/import
+Import apps from JSON.
+```json
+{ "apps": [...], "strategy": "skip" | "replace" }
+```
+
+## 📋 Manual Test Checklist
+
+- [ ] View empty dashboard with "Add App" button
+- [ ] Add a new web app (e.g., https://google.com)
+- [ ] Add a new local app (e.g., http://localhost:8080)
+- [ ] Click card to open URL in new tab
+- [ ] Edit an existing app
+- [ ] Delete an app with confirmation
+- [ ] Duplicate an app
+- [ ] Pin/unpin an app
+- [ ] Search by name, URL, tags
+- [ ] Filter by type (Web/Local)
+- [ ] Filter by tags
+- [ ] Export apps to JSON
+- [ ] Import apps from JSON
+- [ ] Keyboard shortcut "/" focuses search
+- [ ] Keyboard shortcut "n" opens add modal
+- [ ] Mobile responsive layout
+
+## 📄 License
+
+MIT

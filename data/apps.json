@@ -1,0 +1,82 @@
+{
+  "apps": [
+    {
+      "id": "9b6d69de-c2d2-447f-9fdd-8e5ff25b745e",
+      "name": "Multibangun Smart Database",
+      "url": "https://multibangun-smart-database.vercel.app/",
+      "type": "web",
+      "tags": [],
+      "description": "Apps untuk mencari database Multibangun, seperti Company Profile, Brosur Produk",
+      "icon": "📂",
+      "isPinned": true,
+      "startCommand": "",
+      "createdAt": "2026-01-19T05:05:26.307Z",
+      "updatedAt": "2026-01-19T05:05:26.307Z"
+    },
+    {
+      "id": "ffecbb3c-f97b-4d5a-a61b-f129ed5a176c",
+      "name": "Harga dan Stok",
+      "url": "https://krisandi89.github.io/Harga-dan-stok-multibangun/",
+      "type": "web",
+      "tags": [],
+      "description": "Mau tau Stok dan Harga disini yah",
+      "icon": "💰",
+      "isPinned": false,
+      "startCommand": "",
+      "createdAt": "2026-01-19T05:28:45.074Z",
+      "updatedAt": "2026-01-19T05:28:45.074Z"
+    },
+    {
+      "id": "5c56bf83-c67f-4396-bc79-3ee2b6e0ec0d",
+      "name": "Video Downloader",
+      "url": "http://localhost:3000/",
+      "type": "local",
+      "tags": [],
+      "description": "Download Youtube, IG, dan TIktok Video disini yah",
+      "icon": "",
+      "isPinned": false,
+      "startCommand": "/Users/krisandisaptyanto/Library/CloudStorage/SynologyDrive-SandiFIle/PERSONAL/FAMILY/SANDI/Aplikasi Antigravity/Yt-Video-Youtube/Start Video Downloader.command",
+      "createdAt": "2026-01-19T05:32:33.818Z",
+      "updatedAt": "2026-01-19T05:42:49.755Z"
+    },
+    {
+      "id": "6f27259e-abf7-43ca-aab6-d0271954b856",
+      "name": "Meeting Note Script",
+      "url": "http://localhost:5173/",
+      "type": "local",
+      "tags": [],
+      "description": "Mengambil script meeting",
+      "icon": "",
+      "isPinned": false,
+      "startCommand": "/Users/krisandisaptyanto/Library/CloudStorage/SynologyDrive-SandiFIle/PERSONAL/FAMILY/SANDI/Aplikasi Antigravity/Meeting-Note-Geinus/start.command",
+      "createdAt": "2026-01-19T05:45:10.516Z",
+      "updatedAt": "2026-01-19T05:55:00.000Z"
+    },
+    {
+      "id": "c7e9ef4f-3b66-43f8-b781-d54c97fcb997",
+      "name": "Json Prompt Generator",
+      "url": "http://localhost:5179",
+      "type": "local",
+      "tags": [],
+      "description": "",
+      "icon": "",
+      "isPinned": false,
+      "startCommand": "/Users/krisandisaptyanto/Library/CloudStorage/SynologyDrive-SandiFIle/PERSONAL/FAMILY/SANDI/Aplikasi Antigravity/Prompt-Json-Generator/start_app.command",
+      "createdAt": "2026-01-19T07:27:29.481Z",
+      "updatedAt": "2026-01-19T07:27:29.481Z"
+    },
+    {
+      "id": "97bdde29-3730-46f5-b971-0c0015693301",
+      "name": "UMKM Ad Image Generator",
+      "url": "https://gemini.google.com/share/ba1885703fa7",
+      "type": "web",
+      "tags": [],
+      "description": "ubah foto jualanmu, ke sini",
+      "icon": "😎",
+      "isPinned": false,
+      "startCommand": "",
+      "createdAt": "2026-01-19T07:31:16.186Z",
+      "updatedAt": "2026-01-19T07:32:10.052Z"
+    }
+  ]
+}
