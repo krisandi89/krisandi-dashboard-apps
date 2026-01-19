@@ -70,6 +70,12 @@ export function AppGrid() {
         fetchData();
     }, [fetchData]);
 
+    const [isOnVercel, setIsOnVercel] = useState(false);
+
+    useEffect(() => {
+        setIsOnVercel(window.location.hostname.includes("vercel.app"));
+    }, []);
+
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,7 +87,7 @@ export function AppGrid() {
             if (e.key === "/" || e.key === "k" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 document.getElementById("search-input")?.focus();
-            } else if (e.key === "n") {
+            } else if (e.key === "n" && !isOnVercel) {
                 e.preventDefault();
                 setIsAddModalOpen(true);
             }
@@ -89,65 +95,7 @@ export function AppGrid() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, []);
-
-    // Filter and sort apps
-    const filteredApps = useMemo(() => {
-        let result = [...apps];
-
-        // Search filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(
-                (app) =>
-                    app.name.toLowerCase().includes(query) ||
-                    app.url.toLowerCase().includes(query) ||
-                    app.description.toLowerCase().includes(query) ||
-                    app.tags.some((tag) => tag.toLowerCase().includes(query))
-            );
-        }
-
-        // Type filter
-        if (filterType !== "all") {
-            result = result.filter((app) => app.type === filterType);
-        }
-
-        // Tags filter
-        if (filterTags.length > 0) {
-            result = result.filter((app) =>
-                filterTags.some((tag) => app.tags.includes(tag))
-            );
-        }
-
-        // Pinned only filter
-        if (showPinnedOnly) {
-            result = result.filter((app) => app.isPinned);
-        }
-
-        // Sort
-        result.sort((a, b) => {
-            // Pinned first if sorting by pinned
-            if (sortBy === "pinned") {
-                if (a.isPinned !== b.isPinned) {
-                    return a.isPinned ? -1 : 1;
-                }
-                // Then by name
-                return a.name.localeCompare(b.name);
-            }
-
-            if (sortBy === "name") {
-                return a.name.localeCompare(b.name);
-            }
-
-            if (sortBy === "updated") {
-                return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-            }
-
-            return 0;
-        });
-
-        return result;
-    }, [apps, searchQuery, filterType, filterTags, showPinnedOnly, sortBy]);
+    }, [isOnVercel]);
 
     // CRUD handlers
     const handleCreate = async (data: Partial<App>) => {
@@ -313,6 +261,49 @@ export function AppGrid() {
 
     const hasActiveFilters = searchQuery || filterType !== "all" || filterTags.length > 0 || showPinnedOnly;
 
+    // Filter and sort apps
+    const filteredApps = useMemo(() => {
+        let result = [...apps];
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(
+                (app) =>
+                    app.name.toLowerCase().includes(query) ||
+                    app.url.toLowerCase().includes(query) ||
+                    app.description.toLowerCase().includes(query) ||
+                    app.tags.some((tag) => tag.toLowerCase().includes(query))
+            );
+        }
+        if (filterType !== "all") {
+            result = result.filter((app) => app.type === filterType);
+        }
+        if (filterTags.length > 0) {
+            result = result.filter((app) =>
+                filterTags.some((tag) => app.tags.includes(tag))
+            );
+        }
+        if (showPinnedOnly) {
+            result = result.filter((app) => app.isPinned);
+        }
+        result.sort((a, b) => {
+            if (sortBy === "pinned") {
+                if (a.isPinned !== b.isPinned) {
+                    return a.isPinned ? -1 : 1;
+                }
+                return a.name.localeCompare(b.name);
+            }
+            if (sortBy === "name") {
+                return a.name.localeCompare(b.name);
+            }
+            if (sortBy === "updated") {
+                return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+            }
+            return 0;
+        });
+        return result;
+    }, [apps, searchQuery, filterType, filterTags, showPinnedOnly, sortBy]);
+
+
     return (
         <div className="space-y-6">
             {/* Controls */}
@@ -329,10 +320,12 @@ export function AppGrid() {
                             className="pl-9"
                         />
                     </div>
-                    <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        <span className="hidden sm:inline">Add App</span>
-                    </Button>
+                    {!isOnVercel && (
+                        <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            <span className="hidden sm:inline">Add App</span>
+                        </Button>
+                    )}
                 </div>
 
                 {/* Filters row */}
@@ -382,25 +375,29 @@ export function AppGrid() {
 
                     <div className="flex-1" />
 
-                    {/* Export/Import buttons */}
-                    <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
-                        <Download className="h-4 w-4" />
-                        <span className="hidden sm:inline">Export</span>
-                    </Button>
-                    <label>
-                        <Button variant="outline" size="sm" asChild className="gap-2 cursor-pointer">
-                            <span>
-                                <Upload className="h-4 w-4" />
-                                <span className="hidden sm:inline">Import</span>
-                            </span>
-                        </Button>
-                        <input
-                            type="file"
-                            accept=".json"
-                            onChange={handleImport}
-                            className="hidden"
-                        />
-                    </label>
+                    {/* Export/Import buttons - ONLY on localhost */}
+                    {!isOnVercel && (
+                        <>
+                            <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+                                <Download className="h-4 w-4" />
+                                <span className="hidden sm:inline">Export</span>
+                            </Button>
+                            <label>
+                                <Button variant="outline" size="sm" asChild className="gap-2 cursor-pointer">
+                                    <span>
+                                        <Upload className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Import</span>
+                                    </span>
+                                </Button>
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    onChange={handleImport}
+                                    className="hidden"
+                                />
+                            </label>
+                        </>
+                    )}
                     <Button variant="ghost" size="icon" onClick={fetchData} title="Refresh">
                         <RefreshCw className="h-4 w-4" />
                     </Button>

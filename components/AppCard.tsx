@@ -24,7 +24,7 @@ import {
     Play,
     Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 interface AppCardProps {
@@ -52,8 +52,14 @@ function renderIcon(icon: string, fallbackType: "web" | "local") {
 
 export function AppCard({ app, onEdit, onDelete, onDuplicate, onTogglePin }: AppCardProps) {
     const [isStarting, setIsStarting] = useState(false);
+    const [isOnVercel, setIsOnVercel] = useState(false);
+
+    useEffect(() => {
+        setIsOnVercel(window.location.hostname.includes("vercel.app"));
+    }, []);
 
     const handleCardClick = () => {
+        // Stop propagation just in case, though the wrapper usually handles it
         window.open(app.url, "_blank", "noopener,noreferrer");
     };
 
@@ -81,10 +87,8 @@ export function AppCard({ app, onEdit, onDelete, onDuplicate, onTogglePin }: App
                     toast.success(`🚀 [LOCAL] Started server for "${app.name}"`);
                 } catch (localError) {
                     console.error("Local connection failed", localError);
-                    // If we are already on localhost, maybe the port is different?
-                    // But if we are on Vercel, this is the only way.
 
-                    // Fallback to relative ONLY if we are NOT on Vercel (e.g. user running on different port locally)
+                    // Fallback to relative ONLY if we are NOT on Vercel
                     if (!window.location.hostname.includes("vercel.app")) {
                         try {
                             await tryStart();
@@ -130,50 +134,52 @@ export function AppCard({ app, onEdit, onDelete, onDuplicate, onTogglePin }: App
                 </div>
             )}
 
-            {/* Dropdown menu - prevent card click */}
-            <div
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(app)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onDuplicate(app)}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onTogglePin(app)}>
-                            {app.isPinned ? (
-                                <>
-                                    <PinOff className="mr-2 h-4 w-4" />
-                                    Unpin
-                                </>
-                            ) : (
-                                <>
-                                    <Pin className="mr-2 h-4 w-4" />
-                                    Pin to top
-                                </>
-                            )}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                            onClick={() => onDelete(app)}
-                            className="text-destructive focus:text-destructive"
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+            {/* Dropdown menu - ONLY show if NOT on Vercel */}
+            {!isOnVercel && (
+                <div
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 bg-background/50 backdrop-blur-sm">
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onEdit(app)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onDuplicate(app)}>
+                                <Copy className="mr-2 h-4 w-4" />
+                                Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onTogglePin(app)}>
+                                {app.isPinned ? (
+                                    <>
+                                        <PinOff className="mr-2 h-4 w-4" />
+                                        Unpin
+                                    </>
+                                ) : (
+                                    <>
+                                        <Pin className="mr-2 h-4 w-4" />
+                                        Pin to top
+                                    </>
+                                )}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => onDelete(app)}
+                                className="text-destructive focus:text-destructive"
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            )}
 
             <CardHeader className="pb-3">
                 <div className="flex items-start gap-4">

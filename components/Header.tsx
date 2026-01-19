@@ -62,10 +62,12 @@ export function Header() {
                                         <span className="text-muted-foreground">Focus search</span>
                                         <kbd className="px-2 py-1 rounded bg-muted text-xs">/</kbd>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Add new app</span>
-                                        <kbd className="px-2 py-1 rounded bg-muted text-xs">n</kbd>
-                                    </div>
+                                    {!isOnVercel && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Add new app</span>
+                                            <kbd className="px-2 py-1 rounded bg-muted text-xs">n</kbd>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </PopoverContent>
