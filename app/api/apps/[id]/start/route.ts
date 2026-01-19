@@ -33,14 +33,16 @@ export async function POST(request: Request, { params }: RouteParams) {
 
         // Verify the file exists
         try {
+            console.log(`Checking access for path: "${app.startCommand}"`);
             await fs.access(app.startCommand);
-        } catch {
+            console.log("Access successful");
+        } catch (err) {
+            console.error(`Failed to access path: "${app.startCommand}"`, err);
             return NextResponse.json(
-                { error: "Start command file not found", code: "FILE_NOT_FOUND" },
+                { error: `Start command file not found at: ${app.startCommand}`, code: "FILE_NOT_FOUND" },
                 { status: 404 }
             );
         }
-
         // Get the directory of the command file to use as cwd
         const commandDir = path.dirname(app.startCommand);
         const commandFile = app.startCommand;

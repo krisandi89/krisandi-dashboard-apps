@@ -73,28 +73,34 @@ export function AppCard({ app, onEdit, onDelete, onDuplicate, onTogglePin }: App
         };
 
         try {
-            // First attempt: try the current origin (relative path)
-            try {
-                // If we are on Vercel, skip straight to localhost for local apps
-                if (window.location.hostname.includes("vercel.app") && app.type === "local") {
-                    throw new Error("Vercel detected, skipping relative path");
-                }
-                await tryStart();
-                toast.success(`🚀 Started server for "${app.name}"`);
-            } catch (error) {
-                console.log("Failed to start on current origin, trying localhost...", error);
-
-                // Second attempt: try localhost:3001
-                // This works if the user has the app running locally on port 3001
+            // For local apps, ALWAYS try localhost:3001 first
+            // We never want to hit the Vercel backend for start commands
+            if (app.type === "local") {
                 try {
                     await tryStart("http://localhost:3001");
-                    toast.success(`🚀 Started server via Localhost Agent for "${app.name}"`);
-                } catch (secondError) {
-                    console.error("Local agent also failed", secondError);
+                    toast.success(`🚀 [LOCAL] Started server for "${app.name}"`);
+                } catch (localError) {
+                    console.error("Local connection failed", localError);
+                    // If we are already on localhost, maybe the port is different?
+                    // But if we are on Vercel, this is the only way.
+
+                    // Fallback to relative ONLY if we are NOT on Vercel (e.g. user running on different port locally)
+                    if (!window.location.hostname.includes("vercel.app")) {
+                        try {
+                            await tryStart();
+                            toast.success(`🚀 Started server for "${app.name}"`);
+                            return;
+                        } catch (e) { console.error(e); }
+                    }
+
                     toast.error("Could not connect to Local Server. Ensure 'npm run dev' is running on port 3001.");
                     setIsStarting(false);
                     return;
                 }
+            } else {
+                // For web apps (if we ever add start command), use relative
+                await tryStart();
+                toast.success(`🚀 Started server for "${app.name}"`);
             }
 
             // Success handling (open URL)
