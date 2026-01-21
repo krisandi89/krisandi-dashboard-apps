@@ -1,19 +1,6 @@
 {
   "apps": [
     {
-      "id": "9b6d69de-c2d2-447f-9fdd-8e5ff25b745e",
-      "name": "Multibangun Smart Database",
-      "url": "https://multibangun-smart-database.vercel.app/",
-      "type": "web",
-      "tags": [],
-      "description": "Apps untuk mencari database Multibangun, seperti Company Profile, Brosur Produk",
-      "icon": "📂",
-      "isPinned": true,
-      "startCommand": "",
-      "createdAt": "2026-01-19T05:05:26.307Z",
-      "updatedAt": "2026-01-19T05:05:26.307Z"
-    },
-    {
       "id": "ffecbb3c-f97b-4d5a-a61b-f129ed5a176c",
       "name": "Harga dan Stok",
       "url": "https://krisandi89.github.io/Harga-dan-stok-multibangun/",
@@ -24,7 +11,7 @@
       "isPinned": false,
       "startCommand": "",
       "createdAt": "2026-01-19T05:28:45.074Z",
-      "updatedAt": "2026-01-19T05:28:45.074Z"
+      "updatedAt": "2026-01-21T14:22:09.314Z"
     },
     {
       "id": "5c56bf83-c67f-4396-bc79-3ee2b6e0ec0d",
@@ -77,6 +64,19 @@
       "startCommand": "",
       "createdAt": "2026-01-19T07:31:16.186Z",
       "updatedAt": "2026-01-19T08:24:48.359Z"
+    },
+    {
+      "id": "6e35df50-0df5-4439-8492-ed75d21db943",
+      "name": "Multibangun Smart Database (Copy)",
+      "url": "https://multibangun-smart-database.vercel.app/",
+      "type": "web",
+      "tags": [],
+      "description": "Apps untuk mencari database Multibangun, seperti Company Profile, Brosur Produk",
+      "icon": "📂",
+      "isPinned": false,
+      "startCommand": "",
+      "createdAt": "2026-01-21T14:22:41.966Z",
+      "updatedAt": "2026-01-21T14:22:41.966Z"
     }
   ]
 }
