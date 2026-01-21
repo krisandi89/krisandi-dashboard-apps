@@ -77,6 +77,19 @@
       "startCommand": "",
       "createdAt": "2026-01-21T14:22:41.966Z",
       "updatedAt": "2026-01-21T14:45:50.359Z"
+    },
+    {
+      "id": "f7960b24-b9be-4044-924a-deb96a99f492",
+      "name": "PPU dan Rekap",
+      "url": "https://superappmrp.vercel.app/",
+      "type": "web",
+      "tags": [],
+      "description": "membuat PPU dan Rekap",
+      "icon": "💸",
+      "isPinned": false,
+      "startCommand": "",
+      "createdAt": "2026-01-21T14:47:13.484Z",
+      "updatedAt": "2026-01-21T14:48:02.697Z"
     }
   ]
 }
