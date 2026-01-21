@@ -67,7 +67,7 @@
     },
     {
       "id": "6e35df50-0df5-4439-8492-ed75d21db943",
-      "name": "Multibangun Smart Database (Copy)",
+      "name": "Multibangun Smart Database",
       "url": "https://multibangun-smart-database.vercel.app/",
       "type": "web",
       "tags": [],
@@ -76,7 +76,7 @@
       "isPinned": false,
       "startCommand": "",
       "createdAt": "2026-01-21T14:22:41.966Z",
-      "updatedAt": "2026-01-21T14:22:41.966Z"
+      "updatedAt": "2026-01-21T14:45:50.359Z"
     }
   ]
 }
