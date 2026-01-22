@@ -20,6 +20,17 @@ export async function POST() {
         // Git add all changes
         await execAsync("git add .", { cwd: projectPath });
 
+        // Check if there are changes to commit
+        const { stdout: statusOutput } = await execAsync("git status --porcelain", { cwd: projectPath });
+
+        if (!statusOutput.trim()) {
+            // No changes to commit
+            return NextResponse.json(
+                { error: "Tidak ada perubahan untuk di-deploy", code: "NO_CHANGES" },
+                { status: 400 }
+            );
+        }
+
         // Git commit with timestamp
         const timestamp = new Date().toLocaleString("id-ID", {
             dateStyle: "short",
@@ -30,11 +41,12 @@ export async function POST() {
         try {
             await execAsync(`git commit -m "${commitMessage}"`, { cwd: projectPath });
         } catch (commitError: unknown) {
-            // Check if there's nothing to commit
-            const error = commitError as { stderr?: string };
-            if (error.stderr?.includes("nothing to commit")) {
+            // Check if there's nothing to commit (double check)
+            const error = commitError as { stderr?: string; stdout?: string; message?: string };
+            const errorOutput = `${error.stderr || ""} ${error.stdout || ""} ${error.message || ""}`.toLowerCase();
+            if (errorOutput.includes("nothing to commit") || errorOutput.includes("no changes")) {
                 return NextResponse.json(
-                    { error: "No changes to deploy", code: "NO_CHANGES" },
+                    { error: "Tidak ada perubahan untuk di-deploy", code: "NO_CHANGES" },
                     { status: 400 }
                 );
             }
