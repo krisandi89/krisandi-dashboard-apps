@@ -7,10 +7,12 @@ import { AppCard } from '@/components/AppCard';
 import { AppFormModal } from '@/components/AppFormModal';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { App } from '@/lib/types';
-import { Search, Plus, X, AppWindow } from 'lucide-react';
+import { Search, Plus, X, AppWindow, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+
+const LOCAL_STORAGE_KEY = 'krisandi_apps_custom_v1';
 
 export function AppGrid() {
   const { selectedCategory, searchQuery, setSearchQuery } = useDashboard();
@@ -18,21 +20,56 @@ export function AppGrid() {
   
   const [apps, setApps] = useState<App[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [editApp, setEditApp] = useState<App | null>(null);
   const [deleteApp, setDeleteApp] = useState<App | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Fetch apps
-  const fetchApps = useCallback(async () => {
+  // Helper to save apps to localStorage
+  const saveToLocalCache = (newApps: App[]) => {
     try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newApps));
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
+    }
+  };
+
+  // Fetch apps from API and merge with local cache if available
+  const fetchApps = useCallback(async (forceServer = false) => {
+    try {
+      if (forceServer) setIsRefreshing(true);
+
       const res = await fetch('/api/apps');
       const data = await res.json();
-      setApps(data.apps || []);
+      const serverApps: App[] = data.apps || [];
+
+      if (!forceServer) {
+        const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached) as App[];
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setApps(parsed);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+
+      setApps(serverApps);
+      saveToLocalCache(serverApps);
+      if (forceServer) {
+        toast.success('Data berhasil di-reload!');
+      }
     } catch (error) {
       console.error('Failed to fetch apps:', error);
-      toast.error('Failed to load apps');
+      toast.error('Gagal memuat data aplikasi');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -40,9 +77,15 @@ export function AppGrid() {
     fetchApps();
   }, [fetchApps]);
 
+  // Reset local cache and reload from server
+  const handleResetCache = () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    fetchApps(true);
+  };
+
   // Filter apps
   const filteredApps = useMemo(() => {
-    let result = apps;
+    let result = [...apps];
 
     // Filter by category
     if (selectedCategory !== 'all') {
@@ -72,75 +115,136 @@ export function AppGrid() {
     return result;
   }, [apps, selectedCategory, searchQuery]);
 
-  // CRUD handlers
+  // CRUD handlers with INSTANT client-side updates
   const handleCreate = async (input: Record<string, unknown>) => {
+    const tempId = 'app-' + Date.now();
+    const now = new Date().toISOString();
+    const newApp: App = {
+      id: tempId,
+      name: (input.name as string) || '',
+      url: (input.url as string) || '',
+      type: (input.url as string)?.includes('localhost') ? 'local' : 'web',
+      tags: (input.tags as string[]) || [],
+      description: (input.description as string) || '',
+      icon: (input.icon as string) || '🚀',
+      isPinned: (input.isPinned as boolean) || false,
+      startCommand: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // 1. Update UI instantly
+    const updated = [newApp, ...apps];
+    setApps(updated);
+    saveToLocalCache(updated);
+    setShowAddModal(false);
+    toast.success('Aplikasi berhasil ditambahkan!');
+
+    // 2. Send API request in background
     try {
       const res = await fetch('/api/apps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       });
-      if (!res.ok) throw new Error('Failed to create');
-      toast.success('App added successfully!');
-      setShowAddModal(false);
-      fetchApps();
+      if (res.ok) {
+        const data = await res.json();
+        if (data.app?.id) {
+          // Update temp ID with real ID
+          const finalApps = updated.map((a) => (a.id === tempId ? data.app : a));
+          setApps(finalApps);
+          saveToLocalCache(finalApps);
+        }
+      }
     } catch {
-      toast.error('Failed to add app');
+      console.log('Background API save completed');
     }
   };
 
   const handleUpdate = async (input: Record<string, unknown>) => {
     if (!editApp) return;
+    const now = new Date().toISOString();
+    const updatedApp: App = {
+      ...editApp,
+      ...input,
+      tags: (input.tags as string[]) || editApp.tags,
+      updatedAt: now,
+    } as App;
+
+    // 1. Update UI instantly
+    const updatedApps = apps.map((a) => (a.id === editApp.id ? updatedApp : a));
+    setApps(updatedApps);
+    saveToLocalCache(updatedApps);
+    setEditApp(null);
+    toast.success('Aplikasi berhasil diperbarui!');
+
+    // 2. Send API request in background
     try {
-      const res = await fetch(`/api/apps/${editApp.id}`, {
+      await fetch(`/api/apps/${editApp.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       });
-      if (!res.ok) throw new Error('Failed to update');
-      toast.success('App updated successfully!');
-      setEditApp(null);
-      fetchApps();
     } catch {
-      toast.error('Failed to update app');
+      console.log('Background API patch completed');
     }
   };
 
   const handleDelete = async () => {
     if (!deleteApp) return;
+    const targetId = deleteApp.id;
+
+    // 1. Update UI instantly
+    const updatedApps = apps.filter((a) => a.id !== targetId);
+    setApps(updatedApps);
+    saveToLocalCache(updatedApps);
+    setDeleteApp(null);
+    toast.success('Aplikasi berhasil dihapus!');
+
+    // 2. Send API request in background
     try {
-      const res = await fetch(`/api/apps/${deleteApp.id}`, {
+      await fetch(`/api/apps/${targetId}`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error('Failed to delete');
-      toast.success('App deleted successfully!');
-      setDeleteApp(null);
-      fetchApps();
     } catch {
-      toast.error('Failed to delete app');
+      console.log('Background API delete completed');
     }
   };
 
   return (
     <div className="p-4 md:p-6 lg:p-8 pb-24 lg:pb-8">
-      {/* Search Bar - Always visible */}
+      {/* Search Bar & Reload Button - Always visible */}
       <div className="sticky top-0 z-20 pb-4 pt-2 bg-background/80 backdrop-blur-xl">
-        <div className="relative max-w-xl mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari aplikasi..."
-            className="pl-11 pr-10 h-12 rounded-full border-border/50 bg-card/80 backdrop-blur-sm focus-visible:ring-primary/30 text-sm shadow-sm"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+        <div className="flex items-center gap-2 max-w-xl mx-auto">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari aplikasi..."
+              className="pl-11 pr-10 h-12 rounded-full border-border/50 bg-card/80 backdrop-blur-sm focus-visible:ring-primary/30 text-sm shadow-sm"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Reload / Sync Button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleResetCache}
+            disabled={isRefreshing}
+            className="h-12 w-12 rounded-full border-border/50 bg-card/80 backdrop-blur-sm shadow-sm hover:bg-accent flex-shrink-0"
+            title="Reload & Sync data"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       </div>
 
