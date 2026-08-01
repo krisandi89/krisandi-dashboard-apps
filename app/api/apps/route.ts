@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createAppSchema } from "@/lib/validators";
 import { ZodError } from "zod";
+import { isAuthenticated } from "@/lib/auth";
 
 // GET /api/apps - Get all apps
 export async function GET() {
@@ -19,6 +20,14 @@ export async function GET() {
 
 // POST /api/apps - Create a new app
 export async function POST(request: Request) {
+    const authed = await isAuthenticated();
+    if (!authed) {
+        return NextResponse.json(
+            { error: "Authentication required", code: "UNAUTHORIZED" },
+            { status: 401 }
+        );
+    }
+
     try {
         const body = await request.json();
         const validated = createAppSchema.parse(body);

@@ -1,516 +1,236 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { App, SortOption, FilterType } from "@/lib/types";
-import { AppCard } from "./AppCard";
-import { AppFormModal } from "./AppFormModal";
-import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import {
-    Plus,
-    Search,
-    SortAsc,
-    Filter,
-    RefreshCw,
-    Download,
-    Upload,
-    Folder,
-    X,
-} from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useDashboard } from '@/components/DashboardContext';
+import { useAuth } from '@/components/AuthProvider';
+import { AppCard } from '@/components/AppCard';
+import { AppFormModal } from '@/components/AppFormModal';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
+import { App } from '@/lib/types';
+import { Search, Plus, X, AppWindow } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export function AppGrid() {
-    const [apps, setApps] = useState<App[]>([]);
-    const [allTags, setAllTags] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [sortBy, setSortBy] = useState<SortOption>("pinned");
-    const [filterType, setFilterType] = useState<FilterType>("all");
-    const [filterTags, setFilterTags] = useState<string[]>([]);
-    const [showPinnedOnly, setShowPinnedOnly] = useState(false);
+  const { selectedCategory, searchQuery, setSearchQuery } = useDashboard();
+  const { isAdmin } = useAuth();
+  
+  const [apps, setApps] = useState<App[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editApp, setEditApp] = useState<App | null>(null);
+  const [deleteApp, setDeleteApp] = useState<App | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
-    // Modal states
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [editingApp, setEditingApp] = useState<App | null>(null);
-    const [deletingApp, setDeletingApp] = useState<App | null>(null);
+  // Fetch apps
+  const fetchApps = useCallback(async () => {
+    try {
+      const res = await fetch('/api/apps');
+      const data = await res.json();
+      setApps(data.apps || []);
+    } catch (error) {
+      console.error('Failed to fetch apps:', error);
+      toast.error('Failed to load apps');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    // Fetch apps and tags
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const [appsRes, tagsRes] = await Promise.all([
-                fetch("/api/apps"),
-                fetch("/api/tags"),
-            ]);
+  useEffect(() => {
+    fetchApps();
+  }, [fetchApps]);
 
-            if (appsRes.ok && tagsRes.ok) {
-                const appsData = await appsRes.json();
-                const tagsData = await tagsRes.json();
-                setApps(appsData.apps);
-                setAllTags(tagsData.tags);
-            }
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            toast.error("Failed to load apps");
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+  // Filter apps
+  const filteredApps = useMemo(() => {
+    let result = apps;
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      result = result.filter((app) =>
+        app.tags.some((tag) => tag.toLowerCase() === selectedCategory.toLowerCase())
+      );
+    }
 
-    const [isOnVercel, setIsOnVercel] = useState(false);
+    // Filter by search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (app) =>
+          app.name.toLowerCase().includes(query) ||
+          app.description.toLowerCase().includes(query) ||
+          app.url.toLowerCase().includes(query) ||
+          app.tags.some((tag) => tag.toLowerCase().includes(query))
+      );
+    }
 
-    useEffect(() => {
-        setIsOnVercel(window.location.hostname.includes("vercel.app"));
-    }, []);
+    // Sort: pinned first, then by name
+    result.sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
 
-    // Keyboard shortcuts
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignore if typing in an input
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-                return;
-            }
+    return result;
+  }, [apps, selectedCategory, searchQuery]);
 
-            if (e.key === "/" || e.key === "k" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                document.getElementById("search-input")?.focus();
-            } else if (e.key === "n" && !isOnVercel) {
-                e.preventDefault();
-                setIsAddModalOpen(true);
-            }
-        };
+  // CRUD handlers
+  const handleCreate = async (input: Record<string, unknown>) => {
+    try {
+      const res = await fetch('/api/apps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error('Failed to create');
+      toast.success('App added successfully!');
+      setShowAddModal(false);
+      fetchApps();
+    } catch {
+      toast.error('Failed to add app');
+    }
+  };
 
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isOnVercel]);
+  const handleUpdate = async (input: Record<string, unknown>) => {
+    if (!editApp) return;
+    try {
+      const res = await fetch(`/api/apps/${editApp.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      toast.success('App updated successfully!');
+      setEditApp(null);
+      fetchApps();
+    } catch {
+      toast.error('Failed to update app');
+    }
+  };
 
-    // CRUD handlers
-    const handleCreate = async (data: Partial<App>) => {
-        try {
-            const res = await fetch("/api/apps", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
-            });
+  const handleDelete = async () => {
+    if (!deleteApp) return;
+    try {
+      const res = await fetch(`/api/apps/${deleteApp.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      toast.success('App deleted successfully!');
+      setDeleteApp(null);
+      fetchApps();
+    } catch {
+      toast.error('Failed to delete app');
+    }
+  };
 
-            if (res.ok) {
-                const { app } = await res.json();
-                setApps((prev) => [...prev, app]);
-                toast.success(`Added "${app.name}"`);
-                setIsAddModalOpen(false);
-            } else {
-                const error = await res.json();
-                toast.error(error.error || "Failed to add app");
-            }
-        } catch (error) {
-            console.error("Error creating app:", error);
-            toast.error("Failed to add app");
-        }
-    };
-
-    const handleUpdate = async (id: string, data: Partial<App>) => {
-        try {
-            const res = await fetch(`/api/apps/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
-            });
-
-            if (res.ok) {
-                const { app } = await res.json();
-                setApps((prev) => prev.map((a) => (a.id === id ? app : a)));
-                toast.success(`Updated "${app.name}"`);
-                setEditingApp(null);
-            } else {
-                const error = await res.json();
-                toast.error(error.error || "Failed to update app");
-            }
-        } catch (error) {
-            console.error("Error updating app:", error);
-            toast.error("Failed to update app");
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!deletingApp) return;
-
-        try {
-            const res = await fetch(`/api/apps/${deletingApp.id}`, {
-                method: "DELETE",
-            });
-
-            if (res.ok) {
-                setApps((prev) => prev.filter((a) => a.id !== deletingApp.id));
-                toast.success(`Deleted "${deletingApp.name}"`);
-                setDeletingApp(null);
-            } else {
-                const error = await res.json();
-                toast.error(error.error || "Failed to delete app");
-            }
-        } catch (error) {
-            console.error("Error deleting app:", error);
-            toast.error("Failed to delete app");
-        }
-    };
-
-    const handleDuplicate = async (app: App) => {
-        const duplicateData = {
-            name: `${app.name} (Copy)`,
-            url: app.url,
-            tags: app.tags,
-            description: app.description,
-            icon: app.icon,
-            isPinned: false,
-        };
-
-        try {
-            const res = await fetch("/api/apps", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(duplicateData),
-            });
-
-            if (res.ok) {
-                const { app: newApp } = await res.json();
-                setApps((prev) => [...prev, newApp]);
-                toast.success(`Duplicated as "${newApp.name}"`);
-            } else {
-                toast.error("Failed to duplicate app");
-            }
-        } catch (error) {
-            console.error("Error duplicating app:", error);
-            toast.error("Failed to duplicate app");
-        }
-    };
-
-    const handleTogglePin = async (app: App) => {
-        await handleUpdate(app.id, { isPinned: !app.isPinned });
-    };
-
-    const handleExport = async () => {
-        try {
-            const res = await fetch("/api/apps/export");
-            if (res.ok) {
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `krisandi-apps-export-${new Date().toISOString().split("T")[0]}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                toast.success("Apps exported successfully");
-            }
-        } catch (error) {
-            console.error("Error exporting apps:", error);
-            toast.error("Failed to export apps");
-        }
-    };
-
-    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        try {
-            const text = await file.text();
-            const data = JSON.parse(text);
-
-            const res = await fetch("/api/apps/import", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ apps: data.apps, strategy: "skip" }),
-            });
-
-            if (res.ok) {
-                const result = await res.json();
-                toast.success(`Imported ${result.imported} apps, skipped ${result.skipped} duplicates`);
-                fetchData();
-            } else {
-                const error = await res.json();
-                toast.error(error.error || "Failed to import apps");
-            }
-        } catch (error) {
-            console.error("Error importing apps:", error);
-            toast.error("Invalid JSON file");
-        }
-
-        // Reset input
-        e.target.value = "";
-    };
-
-    const clearFilters = () => {
-        setSearchQuery("");
-        setFilterType("all");
-        setFilterTags([]);
-        setShowPinnedOnly(false);
-    };
-
-    const hasActiveFilters = searchQuery || filterType !== "all" || filterTags.length > 0 || showPinnedOnly;
-
-    // Filter and sort apps
-    const filteredApps = useMemo(() => {
-        let result = [...apps];
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(
-                (app) =>
-                    app.name.toLowerCase().includes(query) ||
-                    app.url.toLowerCase().includes(query) ||
-                    app.description.toLowerCase().includes(query) ||
-                    app.tags.some((tag) => tag.toLowerCase().includes(query))
-            );
-        }
-        if (filterType !== "all") {
-            result = result.filter((app) => app.type === filterType);
-        }
-        if (filterTags.length > 0) {
-            result = result.filter((app) =>
-                filterTags.some((tag) => app.tags.includes(tag))
-            );
-        }
-        if (showPinnedOnly) {
-            result = result.filter((app) => app.isPinned);
-        }
-        result.sort((a, b) => {
-            if (sortBy === "pinned") {
-                if (a.isPinned !== b.isPinned) {
-                    return a.isPinned ? -1 : 1;
-                }
-                return a.name.localeCompare(b.name);
-            }
-            if (sortBy === "name") {
-                return a.name.localeCompare(b.name);
-            }
-            if (sortBy === "updated") {
-                return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-            }
-            return 0;
-        });
-        return result;
-    }, [apps, searchQuery, filterType, filterTags, showPinnedOnly, sortBy]);
-
-
-    return (
-        <div className="space-y-6">
-            {/* Controls */}
-            <div className="flex flex-col gap-4">
-                {/* Search and Add button row */}
-                <div className="flex gap-3">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            id="search-input"
-                            placeholder='Search apps... (Press "/" to focus)'
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9"
-                        />
-                    </div>
-                    {!isOnVercel && (
-                        <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            <span className="hidden sm:inline">Add App</span>
-                        </Button>
-                    )}
-                </div>
-
-                {/* Filters row */}
-                <div className="flex flex-wrap gap-3 items-center">
-                    <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
-                        <Select value={filterType} onValueChange={(v) => setFilterType(v as FilterType)}>
-                            <SelectTrigger className="w-[120px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Types</SelectItem>
-                                <SelectItem value="web">Web</SelectItem>
-                                <SelectItem value="local">Local</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <SortAsc className="h-4 w-4 text-muted-foreground" />
-                        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                            <SelectTrigger className="w-[140px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="pinned">Pinned First</SelectItem>
-                                <SelectItem value="name">Name A-Z</SelectItem>
-                                <SelectItem value="updated">Recently Updated</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <Button
-                        variant={showPinnedOnly ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setShowPinnedOnly(!showPinnedOnly)}
-                    >
-                        Pinned Only
-                    </Button>
-
-                    {hasActiveFilters && (
-                        <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
-                            <X className="h-4 w-4" />
-                            Clear
-                        </Button>
-                    )}
-
-                    <div className="flex-1" />
-
-                    {/* Export/Import buttons - ONLY on localhost */}
-                    {!isOnVercel && (
-                        <>
-                            <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
-                                <Download className="h-4 w-4" />
-                                <span className="hidden sm:inline">Export</span>
-                            </Button>
-                            <label>
-                                <Button variant="outline" size="sm" asChild className="gap-2 cursor-pointer">
-                                    <span>
-                                        <Upload className="h-4 w-4" />
-                                        <span className="hidden sm:inline">Import</span>
-                                    </span>
-                                </Button>
-                                <input
-                                    type="file"
-                                    accept=".json"
-                                    onChange={handleImport}
-                                    className="hidden"
-                                />
-                            </label>
-                        </>
-                    )}
-                    <Button variant="ghost" size="icon" onClick={fetchData} title="Refresh">
-                        <RefreshCw className="h-4 w-4" />
-                    </Button>
-                </div>
-
-                {/* Tags filter */}
-                {allTags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 items-center">
-                        <span className="text-sm text-muted-foreground">Tags:</span>
-                        {allTags.map((tag) => (
-                            <Badge
-                                key={tag}
-                                variant={filterTags.includes(tag) ? "default" : "outline"}
-                                className="cursor-pointer hover:bg-primary/80"
-                                onClick={() => {
-                                    setFilterTags((prev) =>
-                                        prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-                                    );
-                                }}
-                            >
-                                {tag}
-                            </Badge>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* Loading state */}
-            {isLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {[...Array(8)].map((_, i) => (
-                        <div
-                            key={i}
-                            className="h-40 rounded-lg bg-muted animate-pulse"
-                        />
-                    ))}
-                </div>
-            ) : filteredApps.length === 0 ? (
-                /* Empty state */
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <Folder className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                    {apps.length === 0 ? (
-                        <>
-                            <h3 className="text-lg font-medium mb-2">No apps yet</h3>
-                            <p className="text-muted-foreground mb-4">
-                                Add your first app to get started
-                            </p>
-                            <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
-                                <Plus className="h-4 w-4" />
-                                Add Your First App
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            <h3 className="text-lg font-medium mb-2">No apps found</h3>
-                            <p className="text-muted-foreground mb-4">
-                                Try adjusting your search or filters
-                            </p>
-                            <Button variant="outline" onClick={clearFilters}>
-                                Clear Filters
-                            </Button>
-                        </>
-                    )}
-                </div>
-            ) : (
-                /* App grid */
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredApps.map((app) => (
-                        <AppCard
-                            key={app.id}
-                            app={app}
-                            onEdit={setEditingApp}
-                            onDelete={setDeletingApp}
-                            onDuplicate={handleDuplicate}
-                            onTogglePin={handleTogglePin}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Results count */}
-            {!isLoading && filteredApps.length > 0 && (
-                <p className="text-sm text-muted-foreground text-center">
-                    Showing {filteredApps.length} of {apps.length} apps
-                </p>
-            )}
-
-            {/* Modals */}
-            <AppFormModal
-                open={isAddModalOpen}
-                onOpenChange={setIsAddModalOpen}
-                onSubmit={handleCreate}
-                allTags={allTags}
-            />
-
-            <AppFormModal
-                open={!!editingApp}
-                onOpenChange={(open: boolean) => !open && setEditingApp(null)}
-                onSubmit={async (data) => {
-                    if (editingApp) {
-                        await handleUpdate(editingApp.id, data);
-                    }
-                }}
-                initialData={editingApp || undefined}
-                allTags={allTags}
-            />
-
-            <DeleteConfirmDialog
-                open={!!deletingApp}
-                onOpenChange={(open: boolean) => !open && setDeletingApp(null)}
-                onConfirm={handleDelete}
-                appName={deletingApp?.name || ""}
-            />
+  return (
+    <div className="p-4 md:p-6 lg:p-8 pb-24 lg:pb-8">
+      {/* Search Bar - Always visible */}
+      <div className="sticky top-0 z-20 pb-4 pt-2 bg-background/80 backdrop-blur-xl">
+        <div className="relative max-w-xl mx-auto">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari aplikasi..."
+            className="pl-11 pr-10 h-12 rounded-full border-border/50 bg-card/80 backdrop-blur-sm focus-visible:ring-primary/30 text-sm shadow-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
-    );
+      </div>
+
+      {/* Category title */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">
+            {selectedCategory === 'all' ? 'Semua Aplikasi' : selectedCategory}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {filteredApps.length} aplikasi ditemukan
+          </p>
+        </div>
+      </div>
+
+      {/* Loading state */}
+      {loading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-border/50 bg-card/50 p-5 animate-pulse"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-muted mx-auto mb-4" />
+              <div className="h-4 bg-muted rounded mx-auto w-3/4 mb-2" />
+              <div className="h-3 bg-muted rounded mx-auto w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : filteredApps.length === 0 ? (
+        /* Empty state */
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <AppWindow className="w-16 h-16 mb-4 opacity-30" />
+          <p className="text-lg font-medium">Tidak ada aplikasi</p>
+          <p className="text-sm">
+            {searchQuery
+              ? `Tidak ada hasil untuk "${searchQuery}"`
+              : 'Belum ada aplikasi di kategori ini'}
+          </p>
+        </div>
+      ) : (
+        /* App Grid */
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredApps.map((app, index) => (
+            <AppCard
+              key={app.id}
+              app={app}
+              index={index}
+              onEdit={setEditApp}
+              onDelete={setDeleteApp}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Floating Add Button - Admin only */}
+      {isAdmin && (
+        <Button
+          onClick={() => setShowAddModal(true)}
+          className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 z-30 w-14 h-14 rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 transition-all"
+          size="icon"
+        >
+          <Plus className="w-6 h-6" />
+        </Button>
+      )}
+
+      {/* Add Modal */}
+      <AppFormModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        onSubmit={handleCreate}
+        mode="add"
+      />
+
+      {/* Edit Modal */}
+      <AppFormModal
+        open={!!editApp}
+        onOpenChange={(open) => !open && setEditApp(null)}
+        onSubmit={handleUpdate}
+        mode="edit"
+        initialData={editApp || undefined}
+      />
+
+      {/* Delete Dialog */}
+      <DeleteConfirmDialog
+        open={!!deleteApp}
+        onOpenChange={(open) => !open && setDeleteApp(null)}
+        onConfirm={handleDelete}
+        appName={deleteApp?.name || ''}
+      />
+    </div>
+  );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { updateAppSchema } from "@/lib/validators";
 import { ZodError } from "zod";
+import { isAuthenticated } from "@/lib/auth";
 
 interface RouteParams {
     params: Promise<{ id: string }>;
@@ -32,6 +33,14 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 // PATCH /api/apps/[id] - Update an app
 export async function PATCH(request: Request, { params }: RouteParams) {
+    const authed = await isAuthenticated();
+    if (!authed) {
+        return NextResponse.json(
+            { error: "Authentication required", code: "UNAUTHORIZED" },
+            { status: 401 }
+        );
+    }
+
     try {
         const { id } = await params;
         const body = await request.json();
@@ -68,6 +77,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
 // DELETE /api/apps/[id] - Delete an app
 export async function DELETE(request: Request, { params }: RouteParams) {
+    const authed = await isAuthenticated();
+    if (!authed) {
+        return NextResponse.json(
+            { error: "Authentication required", code: "UNAUTHORIZED" },
+            { status: 401 }
+        );
+    }
+
     try {
         const { id } = await params;
         const deleted = await db.deleteApp(id);

@@ -37,10 +37,79 @@ async function readApps(): Promise<AppsData> {
     }
 }
 
+// Push apps to GitHub if token is configured
+async function pushToGithub(data: AppsData): Promise<void> {
+    const token = process.env.GITHUB_PAT;
+    const repo = process.env.GITHUB_REPO || "krisandi89/krisandi-dashboard-apps";
+    const branch = process.env.GITHUB_BRANCH || "main";
+    const filePath = "data/apps.json";
+
+    if (!token) return;
+
+    try {
+        // 1. Get current file SHA
+        const getRes = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+                "User-Agent": "Krisandi-Dashboard"
+            },
+        });
+
+        if (!getRes.ok) {
+            console.error("Failed to get file SHA from GitHub:", await getRes.text());
+            return;
+        }
+
+        const fileData = await getRes.json();
+        const sha = fileData.sha;
+
+        // 2. Update file
+        const content = Buffer.from(JSON.stringify(data, null, 2)).toString("base64");
+        
+        const updateRes = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+                "Content-Type": "application/json",
+                "User-Agent": "Krisandi-Dashboard"
+            },
+            body: JSON.stringify({
+                message: "Auto update from dashboard - " + new Date().toLocaleString("id-ID"),
+                content,
+                sha,
+                branch,
+            }),
+        });
+
+        if (!updateRes.ok) {
+            console.error("Failed to push to GitHub:", await updateRes.text());
+        } else {
+            console.log("Successfully pushed to GitHub!");
+        }
+    } catch (error) {
+        console.error("Error pushing to GitHub:", error);
+    }
+}
+
 // Write apps to storage
 async function writeApps(data: AppsData): Promise<void> {
-    await ensureDataFile();
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+    // Try to push to GitHub first if token is available
+    if (process.env.GITHUB_PAT) {
+        await pushToGithub(data);
+    }
+
+    try {
+        await ensureDataFile();
+        await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+    } catch (e) {
+        if (process.env.VERCEL) {
+            console.log("On Vercel, skipping local filesystem write.");
+        } else {
+            throw e;
+        }
+    }
 }
 
 // Database abstraction layer
